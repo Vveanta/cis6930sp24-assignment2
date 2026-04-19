@@ -1,11 +1,13 @@
 from unittest.mock import patch
 import pytest # type: ignore
 
-from assignment2 import geocode_address  
+from app.utils.geocoding import geocode_address
+
+
 @pytest.fixture
 def mock_gmaps_geocode():
     # Fixture to mock the gmaps.geocode method
-    with patch('assignment2.gmaps.geocode') as mock:
+    with patch("app.utils.geocoding.gmaps.geocode") as mock:
         yield mock
 
 def test_geocode_address_without_cache_and_api_call(mock_gmaps_geocode):

@@ -1,0 +1,54 @@
+.processing-section {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 60vh;
+    padding: 2rem;
+}
+
+.processing-card {
+    max-width: 32rem;
+    text-align: center;
+    padding: 2rem;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.06);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+
+.processing-card h1 {
+    font-size: 1.5rem;
+    margin: 1rem 0;
+}
+
+.processing-text {
+    line-height: 1.5;
+    color: #444;
+    margin-bottom: 1rem;
+}
+
+.processing-status {
+    font-family: ui-monospace, monospace;
+    font-size: 0.9rem;
+    color: #1a5f7a;
+}
+
+.processing-error {
+    color: #b00020;
+    margin-top: 1rem;
+}
+
+.spinner {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto;
+    border: 4px solid #e0e0e0;
+    border-top-color: #1a5f7a;
+    border-radius: 50%;
+    animation: processing-spin 0.9s linear infinite;
+}
+
+@keyframes processing-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}

@@ -1,10 +1,11 @@
 import csv
 import logging
+import os
 import sqlite3
+import uuid
 from flask import Blueprint, render_template, request, redirect, send_from_directory, url_for, flash, jsonify
 from .forms import URLForm, UploadForm, FeedbackForm
 from werkzeug.utils import secure_filename
-import os
 import pandas as pd
 from .utils import create_db, fetch_incidents, extract_incidents, populate_db, augment_data,create_feedback_tables
 import urllib.error
@@ -18,6 +19,12 @@ import configparser
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 main = Blueprint('main', __name__)
+
+
+def use_async_worker() -> bool:
+    """When REDIS_URL is set, augmentation runs in a Celery worker (survives HTTP timeouts)."""
+    return bool(os.environ.get("REDIS_URL"))
+
 
 @main.route('/', methods=['GET'])
 def index():
@@ -68,9 +75,83 @@ def upload():
                     flash('Unsupported file type', category='error')
                     return redirect(url_for('main.upload'))
 
+        if use_async_worker():
+            from app.job_store import store_job_payload
+            from app.tasks import run_augment_job
+
+            job_id = str(uuid.uuid4())
+            with open(db_path, "rb") as f:
+                db_bytes = f.read()
+            store_job_payload(job_id, db_bytes, failed_urls, skipped_urls)
+            run_augment_job.apply_async(args=[job_id], task_id=job_id)
+            return redirect(url_for("main.processing", job_id=job_id))
+
         csv_file_path = augment_data(db_path)
         return redirect(url_for('main.results', csv_file_path=csv_file_path, failed_urls=urllib.parse.quote_plus(','.join(failed_urls)), skipped_urls=urllib.parse.quote_plus(','.join(skipped_urls))))
     return render_template('upload.html', upload_form=upload_form)
+
+
+@main.route("/processing/<job_id>")
+def processing(job_id: str):
+    if not use_async_worker():
+        return redirect(url_for("main.upload"))
+    return render_template("processing.html", job_id=job_id)
+
+
+@main.route("/api/job-status/<job_id>")
+def job_status(job_id: str):
+    if not use_async_worker():
+        return jsonify(error="async pipeline disabled"), 400
+    from celery.result import AsyncResult
+    from app.celery_app import celery_app
+
+    result = AsyncResult(job_id, app=celery_app)
+    state = result.state
+    payload: dict = {"state": state}
+    if state == "FAILURE":
+        err = result.result
+        payload["error"] = str(err) if err is not None else "Unknown error"
+    return jsonify(payload)
+
+
+@main.route("/api/job-finalize/<job_id>", methods=["POST"])
+def job_finalize(job_id: str):
+    if not use_async_worker():
+        return jsonify(error="async pipeline disabled"), 400
+    from celery.result import AsyncResult
+    from app.celery_app import celery_app
+    from app.job_store import get_job_meta, pop_job_results_for_finalize
+
+    result = AsyncResult(job_id, app=celery_app)
+    if not result.successful():
+        return jsonify(error="Job not finished successfully"), 400
+
+    meta = get_job_meta(job_id)
+    try:
+        db_bytes, csv_bytes = pop_job_results_for_finalize(job_id)
+    except ValueError as e:
+        return jsonify(error=str(e)), 500
+
+    os.makedirs("resources", exist_ok=True)
+    with open("resources/normanpd.db", "wb") as f:
+        f.write(db_bytes)
+
+    app_res = os.path.join("app", "resources")
+    os.makedirs(app_res, exist_ok=True)
+    csv_rel = os.path.join("app", "resources", "augmented_data.csv")
+    with open(csv_rel, "wb") as f:
+        f.write(csv_bytes)
+
+    failed_q = urllib.parse.quote_plus(",".join(meta.get("failed_urls", [])))
+    skipped_q = urllib.parse.quote_plus(",".join(meta.get("skipped_urls", [])))
+    next_url = url_for(
+        "main.results",
+        csv_file_path=csv_rel,
+        failed_urls=failed_q,
+        skipped_urls=skipped_q,
+        _external=True,
+    )
+    return jsonify(redirect=next_url)
 
 def process_urls(urls, db_path, success_count):
     failed_urls = []

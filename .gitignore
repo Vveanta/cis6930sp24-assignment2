@@ -28,8 +28,6 @@ Network Trash Folder
 Temporary Items
 .apdisk
 
-#lock files
-Pipfile.lock
 
 __pycache__/
 *.pyc
@@ -49,10 +47,10 @@ config.ini
 results.py
 db
 localtestpdf
-app/templates/processing.html
 app/utils/tasks.py
 celery_config.py
 config.py
+deployment_readme.md
 
 
 #other cache files

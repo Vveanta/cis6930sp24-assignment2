@@ -1,0 +1,10 @@
+# Local Redis for Celery (optional). Usage:
+#   docker compose up -d redis
+#   export REDIS_URL=redis://localhost:6379/0
+# Terminal 1: celery -A app.celery_app worker --loglevel=info
+# Terminal 2: pipenv run python -m flask run --port 5200
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"

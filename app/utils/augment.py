@@ -20,7 +20,7 @@ def create_geocode_table(geocode_db_path="resources/normanpd.db"):
     conn.commit()
     conn.close()
 def augment_data(db_path):
-    create_geocode_table()
+    create_geocode_table(db_path)
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.execute('SELECT * FROM incidents')
@@ -44,7 +44,7 @@ def augment_data(db_path):
         # Time of Day (hour)
         incident['Time Of Day'] = incident_time.hour
         # latitude, longitude = geocode_location(location)  # Assuming implementation
-        latitude, longitude = geocode_address(incident['Location'])
+        latitude, longitude = geocode_address(incident['Location'], db_path)
         
         if latitude is not None and longitude is not None:
             incident['Weather'] = fetch_weathercode_using_meteo(latitude, longitude, incident_time.strftime("%Y-%m-%d"), incident_time.hour)

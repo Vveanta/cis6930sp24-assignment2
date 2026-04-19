@@ -1,5 +1,7 @@
 FLASK_APP=run
 FLASK_ENV=development
 FLASK_DEBUG=1
-GOOGLE_API_KEY = 
-PORT = 5200
+GOOGLE_API_KEY=
+PORT=5200
+# Optional: set REDIS_URL to run augmentation in a Celery worker (see README).
+# REDIS_URL=redis://localhost:6379/0

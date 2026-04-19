@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from assignment2 import fetch_weathercode_using_meteo  
+from app.utils.weather import fetch_weathercode_using_meteo
 
 def test_fetch_weather_data_real_request():
     # Known coordinates for testing, e.g., Norman, OK

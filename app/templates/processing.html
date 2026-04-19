@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Processing…{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/processing.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="processing-section">
+    <div class="processing-card">
+        <div class="spinner" aria-hidden="true"></div>
+        <h1>Processing your incident data</h1>
+        <p class="processing-text">
+            Geocoding, weather lookup, and ranking can take several minutes. This page will redirect when results are ready.
+            <strong>Do not close this tab.</strong>
+        </p>
+        <p id="processing-status" class="processing-status">Starting…</p>
+        <p id="processing-error" class="processing-error" hidden></p>
+    </div>
+</section>
+
+<script>
+(function () {
+    const jobId = {{ job_id | tojson }};
+    const statusEl = document.getElementById('processing-status');
+    const errEl = document.getElementById('processing-error');
+
+    function setStatus(msg) {
+        statusEl.textContent = msg;
+    }
+
+    async function poll() {
+        try {
+            const res = await fetch('/api/job-status/' + encodeURIComponent(jobId));
+            if (!res.ok) {
+                setStatus('Could not read job status (' + res.status + '). Retrying…');
+                setTimeout(poll, 3000);
+                return;
+            }
+            const data = await res.json();
+            if (data.state === 'SUCCESS') {
+                setStatus('Finishing up…');
+                const fin = await fetch('/api/job-finalize/' + encodeURIComponent(jobId), { method: 'POST' });
+                const out = await fin.json();
+                if (!fin.ok) {
+                    errEl.hidden = false;
+                    errEl.textContent = out.error || 'Finalize failed';
+                    return;
+                }
+                window.location.href = out.redirect;
+                return;
+            }
+            if (data.state === 'FAILURE') {
+                errEl.hidden = false;
+                errEl.textContent = data.error || 'Processing failed.';
+                return;
+            }
+            setStatus('Working… (' + data.state + ')');
+            setTimeout(poll, 2500);
+        } catch (e) {
+            setStatus('Network error. Retrying…');
+            setTimeout(poll, 4000);
+        }
+    }
+    poll();
+})();
+</script>
+{% endblock %}

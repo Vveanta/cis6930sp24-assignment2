@@ -25,6 +25,8 @@ email-validator = "*"
 plotly = "*"
 exceptiongroup = "*"
 gunicorn = "*"
+celery = "*"
+redis = "*"
 
 [dev-packages]
 

@@ -34,16 +34,19 @@ cd norman-incident-vis
 ```
 
 ### Step 2: Install Dependencies
+From the project root, install everything declared in the `Pipfile` (this creates or uses the project virtualenv and installs Flask, PyMuPDF, etc.):
+
 ```bash
 pipenv install
 ```
 
-### Step 3: Activate the Virtual Environment
+If you do not use Pipenv, install the pinned set from `requirements.txt` **into the same environment** you will use to run the app (for example, after activating your venv):
+
 ```bash
-pipenv shell
+pip install -r requirements.txt
 ```
 
-### Step 4: Configure `.env`
+### Step 3: Configure `.env`
 
 Copy the example environment file and update it with your actual Google Maps API key:
 
@@ -57,15 +60,67 @@ Then, open `.env` and replace the placeholder with your API key:
 GOOGLE_API_KEY=YOUR_ACTUAL_API_KEY_HERE
 ```
 
+### Step 4: Run the application locally
 
-### Step 5: Run the Flask Application
-Set up the environment and start the Flask server:
+Run everything from the **project root**. Use **`pipenv run`** (or `pipenv shell` first) so you use this project’s Python—not a global/Homebrew `flask` (which often causes missing packages such as `fitz`).
+
+#### Option A — Simple (no Redis)
+
+Augmentation runs inside the web process. **Do not** set `REDIS_URL` in `.env` (or comment it out).
+
 ```bash
 export FLASK_APP=run
-flask run --port 5200
+pipenv run python -m flask run --port 5200
 ```
 
-The application will be accessible at `http://localhost:5200`.
+Then open **http://localhost:5200**.
+
+With an activated shell:
+
+```bash
+pipenv shell
+export FLASK_APP=run
+python -m flask run --port 5200
+```
+
+Sanity checks: `which python` should point under `.local/share/virtualenvs/...`; `python -c "import fitz"` should work.
+
+#### Option B — With Celery + Redis (same as production)
+
+For the **processing page** and background augmentation:
+
+1. Start Redis: `docker compose up -d redis` (see `docker-compose.yml`).
+2. In `.env`: `REDIS_URL=redis://localhost:6379/0` and `GOOGLE_API_KEY=...`.
+3. **Terminal 1 — worker:**
+
+   ```bash
+   pipenv run celery -A app.celery_app worker --loglevel=info
+   ```
+
+4. **Terminal 2 — web:**
+
+   ```bash
+   export FLASK_APP=run
+   pipenv run python -m flask run --port 5200
+   ```
+
+#### Optional: Gunicorn locally
+
+```bash
+pipenv run gunicorn run:app -c gunicorn.conf.py
+```
+
+Render sets `PORT`; locally the config falls back to port **8000** unless you set `PORT`.
+
+#### Troubleshooting: `ModuleNotFoundError` (e.g. `No module named 'fitz'`)
+
+Use **`pipenv run python -m flask ...`** or **`python -m flask ...`** after `pipenv shell`, not a bare **`flask`** from Homebrew.
+
+---
+
+### Deployment (cloud)
+
+Step-by-step for **Render and other hosts** (build/start commands, environment variables, Redis, worker) is in **`deployment_readme.md`**.
 
 ---
 
