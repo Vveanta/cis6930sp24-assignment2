@@ -5,8 +5,13 @@ from typing import Any, Optional
 import openmeteo_requests  # type: ignore
 import pandas as pd
 import requests_cache  # type: ignore
-from openmeteo_requests import OpenMeteoRequestsError  # type: ignore
 from retry_requests import retry  # type: ignore
+
+# openmeteo_requests>=1.3 exports this from the package root; older builds only expose it on Client.
+try:
+    from openmeteo_requests import OpenMeteoRequestsError  # type: ignore
+except ImportError:  # pragma: no cover
+    from openmeteo_requests.Client import OpenMeteoRequestsError  # type: ignore
 
 # Retry Open-Meteo when rate-limited ("Too many concurrent requests", etc.)
 _WEATHER_MAX_ATTEMPTS = 6
