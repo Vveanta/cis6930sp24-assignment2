@@ -3,78 +3,185 @@
 {% block title %}Upload Files{% endblock %}
 
 {% block content %}
-<section class="upload-section">
-    <div class="upload-container">
-        <h1>Upload NormanPD Incident Reports</h1>
-        <p class="text">A maximum of three incident reports are allowed to be processed at a time. 
-            If you need to process more files, please contact the maker of this web app: 
-            <a href="https://www.linkedin.com/in/vedansh-mahe" target="_blank">Vedansh Maheshwari on LinkedIn</a>. </p>
-        <form action="{{ url_for('main.upload') }}" method="post" enctype="multipart/form-data">
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div class="card" style="max-width:44rem;margin:0 auto 1rem;border-left:4px solid var(--danger);">
+    {% for cat, msg in messages %}
+    <p class="lead" style="margin:0;">{{ msg }}</p>
+    {% endfor %}
+  </div>
+  {% endif %}
+{% endwith %}
+<section class="upload-section page-hero">
+    <div class="upload-container card">
+        <h1>Load Norman PD incident data</h1>
+        <p class="lead">
+            Up to <strong>three</strong> PDFs or URLs per run (combined across PDF / URL / CSV-of-URLs).
+            For <strong>Norman daily summaries</strong>, pick up to <strong>three dates</strong> per session—need more? Contact the developer.
+        </p>
+        <p class="doc-link">
+            <a href="{{ norman_docs_url }}" target="_blank" rel="noopener">Official activity reports &amp; document format</a>
+        </p>
+
+        <form action="{{ url_for('main.upload') }}" method="post" enctype="multipart/form-data" id="upload-form">
             {{ upload_form.hidden_tag() }}
             <div class="form-group">
-                <label for="file_type">Choose File Type:</label>
+                <label class="lbl-block">Source type</label>
                 <div class="radio-group">
                     <label class="radio-option">
                         <input type="radio" name="file_type" value="csv" onchange="toggleInputFields()">
-                        <span><i class="fas fa-file-csv"></i> CSV</span>
+                        <span><i class="fas fa-file-csv"></i> CSV of PDF URLs</span>
                     </label>
                     <label class="radio-option">
                         <input type="radio" name="file_type" value="pdf" onchange="toggleInputFields()">
-                        <span><i class="fas fa-file-pdf"></i> PDF</span>
+                        <span><i class="fas fa-file-pdf"></i> PDF upload</span>
                     </label>
                     <label class="radio-option">
                         <input type="radio" name="file_type" value="url" onchange="toggleInputFields()">
-                        <span><i class="fas fa-link"></i> URL</span>
+                        <span><i class="fas fa-link"></i> PDF URL(s)</span>
                     </label>
                     <label class="radio-option">
                         <input type="radio" name="file_type" value="default_pdf" onchange="toggleInputFields()">
-                        <span><i class="fas fa-file-pdf defpdf"></i> Default PDF</span>
+                        <span><i class="fas fa-file-pdf defpdf"></i> Bundled sample PDF</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="file_type" value="norman_daily" onchange="toggleInputFields()">
+                        <span><i class="fas fa-calendar-alt"></i> Norman daily (pick dates)</span>
                     </label>
                 </div>
             </div>
+
             <div id="file-input-div" class="form-group" style="display: none;">
-                <label id="file-input-label" for="file-input">Upload File:</label>
+                <label id="file-input-label" for="file-input">Files</label>
                 {{ upload_form.file(class="form-control", id="file-input", multiple=True) }}
             </div>
             <div id="url-input-div" class="form-group" style="display: none;">
-                <label for="url-input">Enter URLs (one per line):</label>
-                <textarea name="urls" id="url-input" class="form-control"></textarea>
+                <label for="url-input">URLs (one per line)</label>
+                <textarea name="urls" id="url-input" class="form-control" rows="5"></textarea>
             </div>
             <div id="default-pdf-div" class="form-group" style="display: none;">
-                <label for="default-pdfs">Select a Default PDF:</label>
+                <label for="default-pdfs">Sample PDF</label>
                 {{ upload_form.default_pdfs(class="form-control") }}
             </div>
+
+            <div id="norman-daily-div" class="form-group" style="display: none;">
+                <label class="lbl-block">Daily incident summary dates</label>
+                <p class="lead small-print">
+                    Available roughly from the first day of <em>two months before</em> this calendar month through <strong>seven days before today</strong>
+                    (publishing lag). PDFs are fetched from the city site automatically.
+                </p>
+                <div class="norman-pick-row">
+                    <input type="date" id="norman-picker" min="{{ norman_date_min }}" max="{{ norman_date_max }}" />
+                    <button type="button" class="btn btn-ghost" id="norman-add">Add date</button>
+                </div>
+                <ul id="norman-chip-list" class="chip-list"></ul>
+                <input type="hidden" name="norman_dates" id="norman-dates-field" value="" />
+                <p class="small-print" id="norman-limit-msg"></p>
+            </div>
+
             <div class="form-group">
                 {{ upload_form.submit(class="btn btn-primary") }}
             </div>
         </form>
-       
     </div>
 </section>
 
+<style>
+  .lbl-block { display:block; font-weight:600; margin-bottom:.5rem; }
+  .small-print { font-size:0.9rem; color: var(--muted); margin: .5rem 0; }
+  .norman-pick-row { display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; margin:.5rem 0; }
+  .chip-list { list-style:none; display:flex; flex-wrap:wrap; gap:.5rem; margin:.75rem 0; padding:0; }
+  .chip-list li { background:#e8f4f6; color:var(--accent-2); padding:.35rem .65rem; border-radius:999px; font-size:.9rem; display:flex; align-items:center; gap:.4rem; }
+  .chip-list button { border:none; background:transparent; cursor:pointer; font-weight:700; color:var(--danger); }
+  .upload-container { max-width: 880px; margin: 0 auto; }
+</style>
+
 <script>
+    const MAX_NORMAN = 3;
+    let normanDates = [];
+
     function toggleInputFields() {
-        var fileType = document.querySelector('input[name="file_type"]:checked').value;
+        var fileType = document.querySelector('input[name="file_type"]:checked');
+        if (!fileType) return;
+        fileType = fileType.value;
         var fileInput = document.getElementById('file-input');
         var fileInputDiv = document.getElementById('file-input-div');
         var urlInputDiv = document.getElementById('url-input-div');
         var defaultPdfDiv = document.getElementById('default-pdf-div');
+        var normanDiv = document.getElementById('norman-daily-div');
         fileInputDiv.style.display = 'none';
         urlInputDiv.style.display = 'none';
         defaultPdfDiv.style.display = 'none';
+        normanDiv.style.display = 'none';
 
         if (fileType === 'csv' || fileType === 'pdf') {
             fileInputDiv.style.display = 'block';
-            fileInput.required = true; // Set the file input as required
-            fileInputDiv.querySelector('label').textContent = fileType === 'csv' ? 'Upload CSV File:' : 'Upload PDF File:';
+            fileInput.required = true;
+            fileInputDiv.querySelector('label').textContent = fileType === 'csv' ? 'CSV file' : 'PDF file(s)';
             fileInputDiv.querySelector('input[type="file"]').accept = fileType === 'csv' ? '.csv' : '.pdf';
         } else if (fileType === 'url') {
             urlInputDiv.style.display = 'block';
-            fileInput.required = false; // Not required for URL entries
+            fileInput.required = false;
         } else if (fileType === 'default_pdf') {
             defaultPdfDiv.style.display = 'block';
-            fileInput.required = false; // Not required for default PDF selection
+            fileInput.required = false;
+        } else if (fileType === 'norman_daily') {
+            normanDiv.style.display = 'block';
+            fileInput.required = false;
         }
     }
+
+    function syncNormanHidden() {
+        document.getElementById('norman-dates-field').value = normanDates.join(',');
+    }
+
+    function renderNormanChips() {
+        var ul = document.getElementById('norman-chip-list');
+        ul.innerHTML = '';
+        normanDates.forEach(function (d) {
+            var li = document.createElement('li');
+            li.textContent = d + ' ';
+            var rm = document.createElement('button');
+            rm.type = 'button';
+            rm.setAttribute('aria-label', 'Remove ' + d);
+            rm.textContent = '×';
+            rm.onclick = function () {
+                normanDates = normanDates.filter(function (x) { return x !== d; });
+                syncNormanHidden();
+                renderNormanChips();
+            };
+            li.appendChild(rm);
+            ul.appendChild(li);
+        });
+        document.getElementById('norman-limit-msg').textContent =
+            normanDates.length >= MAX_NORMAN
+                ? 'Maximum ' + MAX_NORMAN + ' dates selected. For more, contact the developer.'
+                : '';
+    }
+
+    document.getElementById('norman-add').addEventListener('click', function () {
+        var picker = document.getElementById('norman-picker');
+        var v = picker.value;
+        if (!v) return;
+        if (normanDates.indexOf(v) >= 0) return;
+        if (normanDates.length >= MAX_NORMAN) {
+            alert('You can select at most ' + MAX_NORMAN + ' dates per session. For more, contact the developer.');
+            return;
+        }
+        normanDates.push(v);
+        normanDates.sort();
+        syncNormanHidden();
+        renderNormanChips();
+    });
+
+    document.getElementById('upload-form').addEventListener('submit', function (e) {
+        var ft = document.querySelector('input[name="file_type"]:checked');
+        if (ft && ft.value === 'norman_daily' && normanDates.length === 0) {
+            e.preventDefault();
+            alert('Add at least one daily report date.');
+        }
+    });
+
+    toggleInputFields();
 </script>
 {% endblock %}

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Geocoding limit{% endblock %}
+{% block content %}
+<section class="page-hero error-page">
+  <div class="card card-narrow">
+    <span class="badge badge-danger">Maps API</span>
+    <h1>Geocoding quota or access issue</h1>
+    <p class="lead">
+      Google could not geocode addresses for this run (billing, daily limit, or API restrictions). Incident data was not fully augmented.
+    </p>
+    <p>
+      Try again later, or contact the app maintainer if this persists. You can still review
+      <a href="https://www.normanok.gov/public-safety/police-department/crime-prevention-data/department-activity-reports" target="_blank" rel="noopener">Norman PD’s published reports</a>
+      directly.
+    </p>
+    <p>
+      <a class="btn btn-primary" href="{{ url_for('main.upload') }}">Back to upload</a>
+      <a class="btn btn-ghost" href="{{ url_for('main.index') }}">Home</a>
+    </p>
+  </div>
+</section>
+{% endblock %}

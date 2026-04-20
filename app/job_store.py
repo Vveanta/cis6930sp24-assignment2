@@ -27,6 +27,42 @@ def _key(job_id: str, suffix: str) -> str:
     return f"{KEY_PREFIX}:{job_id}:{suffix}"
 
 
+def set_job_progress(
+    job_id: str,
+    stage: str,
+    percent: int,
+    detail: Optional[str] = None,
+) -> None:
+    """Persist coarse progress for long-running Celery jobs (stage label + 0–100 percent)."""
+    r = get_redis()
+    payload = json.dumps(
+        {"stage": stage, "percent": max(0, min(100, percent)), "detail": detail}
+    )
+    r.setex(_key(job_id, "progress"), TTL_SECONDS, payload.encode("utf-8"))
+
+
+def get_job_progress(job_id: str) -> Optional[dict[str, Any]]:
+    r = get_redis()
+    raw = r.get(_key(job_id, "progress"))
+    if not raw:
+        return None
+    return json.loads(raw.decode("utf-8"))
+
+
+def set_job_error_code(job_id: str, code: str, message: str) -> None:
+    r = get_redis()
+    payload = json.dumps({"code": code, "message": message})
+    r.setex(_key(job_id, "error"), TTL_SECONDS, payload.encode("utf-8"))
+
+
+def get_job_error_code(job_id: str) -> Optional[dict[str, str]]:
+    r = get_redis()
+    raw = r.get(_key(job_id, "error"))
+    if not raw:
+        return None
+    return json.loads(raw.decode("utf-8"))
+
+
 def store_job_payload(
     job_id: str,
     sqlite_bytes: bytes,
@@ -66,7 +102,7 @@ def pop_job_results_for_finalize(job_id: str) -> tuple[bytes, bytes]:
     csv_b = r.get(sk_csv)
     if not db_b or not csv_b:
         raise ValueError("Missing job results in Redis")
-    r.delete(sk_sql, sk_csv, _key(job_id, "meta"))
+    r.delete(sk_sql, sk_csv, _key(job_id, "meta"), _key(job_id, "progress"), _key(job_id, "error"))
     return db_b, csv_b
 
 
@@ -77,4 +113,6 @@ def clear_job_keys(job_id: str) -> None:
         _key(job_id, "sqlite_out"),
         _key(job_id, "csv"),
         _key(job_id, "meta"),
+        _key(job_id, "progress"),
+        _key(job_id, "error"),
     )

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Invalid PDF{% endblock %}
+{% block content %}
+<section class="page-hero error-page">
+  <div class="card card-narrow">
+    <span class="badge badge-warn">Could not read PDF</span>
+    <h1>Invalid or unsupported PDF</h1>
+    <p class="lead">
+      The file could not be opened as a usable Norman PD incident summary (corrupt file, wrong format, or unexpected layout).
+    </p>
+    <ul class="action-list">
+      <li>Use the official <strong>daily incident summary</strong> PDFs from Norman PD.</li>
+      <li>See examples and links on the activity reports page.</li>
+    </ul>
+    <p>
+      <a class="btn btn-primary" href="https://www.normanok.gov/public-safety/police-department/crime-prevention-data/department-activity-reports" target="_blank" rel="noopener">Norman PD activity reports</a>
+      <a class="btn btn-ghost" href="{{ url_for('main.upload') }}">Try again</a>
+    </p>
+  </div>
+</section>
+{% endblock %}

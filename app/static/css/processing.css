@@ -7,12 +7,13 @@
 }
 
 .processing-card {
-    max-width: 32rem;
+    max-width: 36rem;
     text-align: center;
     padding: 2rem;
     border-radius: 12px;
-    background: rgba(255, 255, 255, 0.06);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+    background: var(--surface, #fff);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--border, #e2e8f0);
 }
 
 .processing-card h1 {
@@ -24,12 +25,7 @@
     line-height: 1.5;
     color: #444;
     margin-bottom: 1rem;
-}
-
-.processing-status {
-    font-family: ui-monospace, monospace;
-    font-size: 0.9rem;
-    color: #1a5f7a;
+    text-align: left;
 }
 
 .processing-error {
@@ -37,12 +33,87 @@
     margin-top: 1rem;
 }
 
+.processing-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    margin-bottom: 0.35rem;
+}
+
+.processing-stage {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #0a5560;
+    text-align: left;
+    flex: 1;
+}
+
+.processing-pct {
+    font-family: ui-monospace, monospace;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #0d6e7c;
+}
+
+.processing-progress-wrap {
+    margin-top: 1rem;
+    text-align: left;
+}
+
+.processing-progress-bar {
+    position: relative;
+    height: 14px;
+    border-radius: 999px;
+    background: #e8eef2;
+    overflow: hidden;
+    margin: 0.35rem 0 0.5rem;
+}
+
+.processing-progress-bar--busy .processing-progress-fill {
+    opacity: 0.35;
+}
+
+.processing-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #0d6e7c, #2dd4bf);
+    width: 0%;
+    transition: width 0.45s ease;
+    border-radius: 999px;
+}
+
+.processing-progress-indeterminate {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 40%;
+    background: linear-gradient(90deg, transparent, rgba(13, 110, 124, 0.35), transparent);
+    animation: processing-indet 1.2s ease-in-out infinite;
+    border-radius: 999px;
+}
+
+@keyframes processing-indet {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(350%);
+    }
+}
+
+.processing-detail {
+    font-size: 0.88rem;
+    color: #5c6b7a;
+    min-height: 1.25rem;
+}
+
 .spinner {
     width: 48px;
     height: 48px;
     margin: 0 auto;
     border: 4px solid #e0e0e0;
-    border-top-color: #1a5f7a;
+    border-top-color: #0d6e7c;
     border-radius: 50%;
     animation: processing-spin 0.9s linear infinite;
 }

@@ -1,443 +1,165 @@
 {% extends "base.html" %}
 {% block head %}
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/results_dashboard.css') }}">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" crossorigin="" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" crossorigin="" />
 {% endblock %}
 {% block title %}Results{% endblock %}
 
 {% block content %}
+<div class="results-dashboard">
+  {% if failed_urls and failed_urls[0] %}
+  <div class="card alert-strip" style="border-left:4px solid var(--warn);margin-bottom:1rem;">
+    <h2 class="h-small">Failed sources</h2>
+    <ul class="muted-list">{% for url in failed_urls %}<li>{{ url }}</li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+  {% if skipped_urls and skipped_urls[0] %}
+  <div class="card alert-strip" style="border-left:4px solid var(--muted);margin-bottom:1rem;">
+    <h2 class="h-small">Skipped (limit)</h2>
+    <ul class="muted-list">{% for url in skipped_urls %}<li>{{ url }}</li>{% endfor %}</ul>
+    <p class="lead small">Some inputs were skipped because of the per-run limit.</p>
+  </div>
+  {% endif %}
 
+  <div class="dashboard-top">
+    <div class="dashboard-title-block">
+      <h1>Incident dashboard</h1>
+      <p class="lead">Filter by date, compare periods, and explore the map. Export CSV, GeoJSON, or a PDF summary.</p>
+      <p class="doc-link"><a href="{{ norman_docs_url }}" target="_blank" rel="noopener">Norman PD activity reports</a></p>
+    </div>
+    <div class="kpi-row" aria-label="Summary">
+      <div class="kpi-card">
+        <div class="kpi-label">Incidents</div>
+        <div class="kpi-value">{{ summary_stats.get('total', '—') }}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">From</div>
+        <div class="kpi-value kpi-value--date">{{ summary_stats.get('date_min') or '—' }}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">To</div>
+        <div class="kpi-value kpi-value--date">{{ summary_stats.get('date_max') or '—' }}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Top nature</div>
+        <div class="kpi-value kpi-value--nature">{{ (summary_stats.get('top_nature') or '—')[:28] }}{% if summary_stats.get('top_nature') and summary_stats.get('top_nature')|length > 28 %}…{% endif %}</div>
+      </div>
+    </div>
+  </div>
 
-{% if failed_urls and failed_urls[0] %}
-<div class="error">
-    <h2>Failed URLs:</h2>
-    <ul>
-        {% for url in failed_urls %}
-        <li>{{ url }}</li>
-        {% endfor %}
-    </ul>
-</div>
-{% endif %}
-{% if skipped_urls and skipped_urls[0] %}
-<div class="error">
-    <h2>Skipped URLs:</h2>
-    <ul>
-        {% for url in skipped_urls %}
-        <li>{{ url }}</li>
-        {% endfor %}
-    </ul>
-    <p>These URLs were not processed because the maximum limit of 3 was reached. If you need to process more files, please contact the maker of this webapp: <a href="https://www.linkedin.com/in/vedansh-mahe">Vedansh Maheshwari on LinkedIn</a>.</p>
-</div>
-{% endif %}
-<div class="results-container">
-    <hr class="custom-hr">
-    <h1>Results</h1>
-    <!-- Text Container -->
-    <div class="des-container">
-        <p>The visualizations below show the frequency of incidents by day of the week (bar graph) and by hour of the day (line graph).</p>
-    </div>
-    <!-- Visualization Container 1 -->
-    <div class="visualization-container">
-        <div id="day-of-week-plot" class="doubleplot"></div>
-        <div id="time-of-day-plot" class="doubleplot"></div>
-    </div>
-    <hr class="custom-hr">
-    <!-- Text Container -->
-    <div class="des-container">
-        <p>This bar graph displays the frequency of incidents under various weather conditions, along with WMO weather codes and their descriptions.</p>
-    </div>
-    <!-- Visualization Container 2 -->
-    <div class="visualization-container" id="weath">
-        <div id="weather-plot" class="doubleplot"></div>
-        <div class="weather-icons-container">
-            <div class="weather-icons" id="weather-icons"></div>
+  {% if anomaly_alerts %}
+  {% for a in anomaly_alerts %}
+  <div class="anomaly-banner"><strong>Signal:</strong> {{ a }}</div>
+  {% endfor %}
+  {% endif %}
+
+  <div class="dashboard-body">
+    <aside class="card sidebar-panel">
+      <h2>Filters</h2>
+      <div class="results-toolbar">
+        <div>
+          <label for="filter-start">From</label>
+          <input type="date" id="filter-start" name="filter_start" />
         </div>
-    </div>
-    
-    <!-- Text Container -->
-    <div class="text-container">
-        <p>If you want to know more about the WMO weather codes, visit the WMO code table site: <a href="https://www.nodc.noaa.gov/archive/arc0021/0002199/1.1/data/0-data/HTML/WMO-CODE/WMO4677.HTM">WMO CODE TABLE</a></p>
-    </div>
-    <hr class="custom-hr">
-    <!-- Text Container -->
-    <div class="des-container">
-        <p>The map below illustrates incident hotspots, with colors representing the frequency of incidents (red indicates the highest frequency, green the lowest).</p>
-    </div>
-    <!-- Visualization Container 3 map -->
-    <div class="visualization-container" id="weath">
-        <div id="map" style="height: 500px;" class="singleplot" ></div>
-    </div>
-    <hr class="custom-hr">
-    <!-- Text Container -->
-    <div class="des-container">
-        <p>This bar graph shows the frequency of different incident types in descending order, with the option to select the number of top incident types to display (default is 20).</p>
-    </div>
-    <!-- Visualization Container 4 nature -->
-    <div class="input-container">
-        <label for="numIncidents">Enter the number of incident types to display:</label>
-        <input type="number" id="numIncidents" name="numIncidents" value="20" min="1" max="100">
-        <button onclick="updateIncidentChart()" class="update-button btn">Update Chart</button>
-    </div>
-    <div class="visualization-container">
-        <div id="incident-rank-plot" class="singleplot"></div>
-        <!-- <div id="top-locations-plot" class="plot"></div> -->
-    </div>
-    <hr class="custom-hr">
-    <!-- Text Container -->
-    <div class="des-container">
-        <p>The two pie charts below show: the frequency of incidents by the side of the town, highlighting the side with the highest frequency; the proportion of incidents categorized as EMSSTAT (medical emergency) versus non-emergency incidents.</p>
-    </div>
-    <!-- Visualization Container 4 -->
-    <div class="visualization-container">
-        <div id="side-of-town-plot" class="doubleplot"></div>
-        <div id="emsstat-plot" class="doubleplot"></div>
-    </div>
+        <div>
+          <label for="filter-end">To</label>
+          <input type="date" id="filter-end" name="filter_end" />
+        </div>
+        <div>
+          <button type="button" class="btn btn-primary" id="apply-filters">Apply to charts</button>
+        </div>
+      </div>
+      <div class="compare-block">
+        <label class="chk"><input type="checkbox" id="compare-toggle" /> Compare two periods</label>
+        <div id="compare-fields" class="compare-grid" style="display:none;">
+          <div>
+            <span class="lbl">Period A</span>
+            <input type="date" id="cmp-a-start" />
+            <input type="date" id="cmp-a-end" />
+          </div>
+          <div>
+            <span class="lbl">Period B</span>
+            <input type="date" id="cmp-b-start" />
+            <input type="date" id="cmp-b-end" />
+          </div>
+        </div>
+      </div>
+    </aside>
 
-    <!-- Buttons -->
-    <div id="buttons">
-        <a href="{{ url_for('main.download_file', filename=csv_url.split('/')[-1]) }}" id="git" class="btn">Download Augmented Data</a>
-        <a href="{{ url_for('main.upload') }}" id="use" class="btn">Upload Again</a>
+    <div class="main-panels">
+      <script type="application/json" id="results-json-raw">{{ data|tojson }}</script>
+      <script type="application/json" id="locations-json-raw">{{ locations|tojson }}</script>
+
+      <div class="chart-row-2">
+        <div class="card chart-panel">
+          <h3 class="panel-heading">Day of week</h3>
+          <div id="day-of-week-plot" class="plot-box"></div>
+        </div>
+        <div class="card chart-panel">
+          <h3 class="panel-heading">Time of day</h3>
+          <div id="time-of-day-plot" class="plot-box"></div>
+        </div>
+      </div>
+
+      <div class="card chart-panel weather-panel">
+        <h3 class="panel-heading">Weather (WMO codes)</h3>
+        <p class="viz-desc">Open-Meteo historical codes; icons are representative.</p>
+        <div id="weather-plot" class="plot-box"></div>
+        <div class="weather-icons" id="weather-icons"></div>
+      </div>
+
+      <div class="card map-panel">
+        <h3 class="panel-heading">Map</h3>
+        <div class="map-controls">
+          <label><input type="checkbox" id="map-cluster" checked /> Cluster</label>
+          <label><input type="checkbox" id="map-heat" /> Heat</label>
+          <label>Radius <input type="range" id="map-radius" min="4" max="40" value="12" /></label>
+        </div>
+        <div id="map" class="map-box"></div>
+      </div>
+
+      <div class="card chart-panel-wide">
+        <div class="chart-panel-head">
+          <h3 class="panel-heading">Incident types</h3>
+          <div class="input-row">
+            <label for="numIncidents">Top N</label>
+            <input type="number" id="numIncidents" value="20" min="1" max="100" />
+            <button type="button" class="btn btn-ghost" onclick="window.updateIncidentChart()">Update</button>
+          </div>
+        </div>
+        <div id="incident-rank-plot" class="plot-box-wide"></div>
+      </div>
+
+      <div class="chart-row-2">
+        <div class="card chart-panel">
+          <h3 class="panel-heading">Side of town</h3>
+          <div id="side-of-town-plot" class="plot-box"></div>
+        </div>
+        <div class="card chart-panel">
+          <h3 class="panel-heading">EMSSTAT</h3>
+          <div id="emsstat-plot" class="plot-box"></div>
+        </div>
+      </div>
+
+      <div class="card exports-bar">
+        <h2>Exports</h2>
+        <div class="export-row">
+          <a class="btn btn-primary" href="{{ url_for('main.download_file', filename=csv_url.split('/')[-1]) }}">CSV</a>
+          <a class="btn btn-ghost" href="{{ url_for('main.export_geojson', csv_file_path=csv_url) }}">GeoJSON</a>
+          <a class="btn btn-ghost" href="{{ url_for('main.export_summary_pdf', csv_file_path=csv_url) }}">PDF summary</a>
+          <a class="btn btn-ghost" href="{{ url_for('main.upload') }}">New run</a>
+        </div>
+      </div>
     </div>
+  </div>
 </div>
 
-<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 
-<script>
-    var jsonData = '{{ data|tojson|safe }}';
-    var data = JSON.parse(jsonData);
-
-    function aggregateData(data, key) {
-        const counts = {};
-        data.forEach(item => {
-            counts[item[key]] = (counts[item[key]] || 0) + 1;
-        });
-        return Object.keys(counts).map(k => ({ key: k, count: counts[k] }));
-    }
-
-    var daysOfWeekLabels = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-
-    // Ensure all days of the week are present in the data
-    function ensureAllDays(data) {
-        var dayCounts = {};
-        daysOfWeekLabels.forEach((day, index) => {
-            dayCounts[index + 1] = 0; // Initialize all days with count 0
-        });
-        data.forEach(item => {
-            dayCounts[item.key] = item.count;
-        });
-        return Object.keys(dayCounts).map(k => ({ key: k, count: dayCounts[k] }));
-    }
-
-    // Visualization for Day of the Week
-    var dayOfWeekData = ensureAllDays(aggregateData(data, 'Day of the Week'));
-    var dayOfWeekPlotData = [{
-        x: daysOfWeekLabels,
-        y: dayOfWeekData.map(item => item.count),
-        type: 'bar'
-    }];
-    var dayOfWeekLayout = {
-        title: 'Incidents by Day of the Week',
-        xaxis: {
-            title: 'Day of the Week',
-            tickvals: daysOfWeekLabels,
-            ticktext: daysOfWeekLabels,
-            range: [0, 6]
-        },
-        bargap: 0.2  // Adjust the gap between bars
-    };
-    Plotly.newPlot('day-of-week-plot', dayOfWeekPlotData, dayOfWeekLayout, {responsive: true});
-
-
-    // Visualization for Time of Day (Line Graph)
-    var timeOfDayData = aggregateData(data, 'Time of Day');
-    var timeOfDayPlotData = [{
-        x: timeOfDayData.map(item => item.key),
-        y: timeOfDayData.map(item => item.count),
-        type: 'scatter',  // Changed to 'scatter' for line graph
-        mode: 'lines+markers'
-    }];
-    var timeOfDayLayout = {
-        title: 'Incidents by Time of Day',
-        xaxis: {
-            title: 'Time of Day (Hour)',
-            dtick: 1  // Set x-axis tick interval to 1
-        },
-        yaxis: {
-            title: 'Count of Incidents'
-        }
-    };
-    Plotly.newPlot('time-of-day-plot', timeOfDayPlotData, timeOfDayLayout, {responsive: true});
-
-
-
-    fetch('https://gist.githubusercontent.com/stellasphere/9490c195ed2b53c707087c8c2db4ec0c/raw/76b0cb0ef0bfd8a2ec988aa54e30ecd1b483495d/descriptions.json')
-    .then(response => response.json())
-    .then(weatherIcons => {
-        // Visualization for Weather
-        var weatherData = aggregateData(data, 'Weather');
-        
-        // Filter out the 'Unknown' weather code
-        weatherData = weatherData.filter(item => item.key !== 'Unknown');
-        
-        // Only include weather types that are present in the data
-        var weatherLabels = weatherData.map(item => item.key);
-        var weatherCounts = weatherData.map(item => item.count);
-
-        var weatherPlotData = [{
-            x: weatherLabels,
-            y: weatherCounts,
-            type: 'bar'
-        }];
-
-        var weatherLayout = {
-            title: 'Incidents by Weather',
-            xaxis: {
-                title: 'Weather WMO codes',
-                type: 'category'  // Treat x-axis labels as categorical values
-            },
-            yaxis: {
-                title: 'Count of Incidents'
-            },
-            bargap: 0.2  // Adjust the gap between bars
-        };
-
-        Plotly.newPlot('weather-plot', weatherPlotData, weatherLayout, {responsive: true});
-
-        // Display weather icons below the plot
-        var weatherIconsContainer = document.getElementById('weather-icons');
-        weatherLabels.forEach((code, index) => {
-            if (code === 'Unknown') return;  // Skip 'Unknown' weather code
-            
-            var dayIcon = weatherIcons[code]?.day?.image || '';
-            var nightIcon = weatherIcons[code]?.night?.image || '';
-            var dayDescription = weatherIcons[code]?.day?.description || '';
-            var nightDescription = weatherIcons[code]?.night?.description || '';
-            var description = (dayDescription === nightDescription) ? dayDescription : `${dayDescription} / ${nightDescription}`;
-            
-            var iconItem = document.createElement('div');
-            iconItem.className = 'weather-icon-item';
-            iconItem.innerHTML = `<div class="code-cont"><strong>${code}</strong></div> <div class="vertical"></div>
-                                    ${dayIcon ? `<div class = "icondesc"> <img src="${dayIcon}" height="40">` : ''}
-                                    ${nightIcon && dayIcon !== nightIcon ? ` <span class="separator">|</span> <img src="${nightIcon}" height="40">` : ''}
-                                    <br>${description} </div>`;
-            weatherIconsContainer.appendChild(iconItem);
-        });
-    })
-    .catch(error => {
-        console.error('Error fetching weather icons:', error);
-    });
-
-    // Aggregate and sort data by Key (incident type)
-    function aggregateAndSortDataByKey(data, key, topN) {
-        const counts = {};
-        data.forEach(item => {
-            counts[item[key]] = (counts[item[key]] || 0) + 1;
-        });
-        const sortedCounts = Object.keys(counts).map(k => ({ key: k, count: counts[k] }))
-            .sort((a, b) => b.count - a.count)
-            .slice(0, topN);
-        return sortedCounts;
-    }
-
-    // Visualization for Top 40 Incident Types
-    var topNatureData = aggregateAndSortDataByKey(data, 'Nature', 20);
-    var topNaturePlotData = [{
-        x: topNatureData.map(item => item.count),
-        y: topNatureData.map(item => item.key),
-        type: 'bar',
-        orientation: 'h',
-        text: topNatureData.map(item => item.key),  // Text inside the bars
-        textposition: 'inside',
-        insidetextanchor: 'middle',  // Center text inside bars
-        hoverinfo: 'x+text',  // Show x, y, and text on hover
-    }];
-    var plotHeight = 20 * 40; 
-    var topNatureLayout = {
-        title: 'Top 20 Most Occurring Incident Types',
-        xaxis: {
-            title: 'Count of Incidents'
-        },
-        yaxis: {
-            title: 'Incident Types',
-            showticklabels: false,
-            autorange: 'reversed'  // Display bars in descending order
-        },
-        height: plotHeight,  // Increase the height of the plot
-        bargap: 0.1  // Adjust the gap between bars
-    };
-    
-    Plotly.newPlot('incident-rank-plot', topNaturePlotData, topNatureLayout, {responsive: true});
-    function updateIncidentChart() {
-        var topN = document.getElementById('numIncidents').value;
-        topN = parseInt(topN, 10);  // Ensure the value is an integer
-
-        var topNatureData = aggregateAndSortDataByKey(data, 'Nature', topN);
-        var topNaturePlotData = [{
-            x: topNatureData.map(item => item.count),
-            y: topNatureData.map(item => item.key),
-            type: 'bar',
-            orientation: 'h',
-            text: topNatureData.map(item => item.key),  // Text inside the bars
-            textposition: 'inside',
-            insidetextanchor: 'middle',  // Center text inside bars
-            hoverinfo: 'x+text',  // Show x, y, and text on hover
-        }];
-        var plotHeight = topN * 40; 
-        var topNatureLayout = {
-            title: 'Top ' + topN + ' Most Occurring Incident Types',
-            xaxis: { title: 'Count of Incidents' },
-            yaxis: { title: 'Incident Types', showticklabels: false, autorange: 'reversed' },
-            height: plotHeight,  // Adjust based on content
-            bargap: 0.1
-        };
-        
-        Plotly.newPlot('incident-rank-plot', topNaturePlotData, topNatureLayout, {responsive: true});
-    }
-    // // Visualization for Top 30 Locations
-    // var topLocationData = aggregateAndSortDataByKey(data, 'Location', 30);
-    // var topLocationPlotData = [{
-    //     x: topLocationData.map(item => item.count),
-    //     y: topLocationData.map(item => item.key),
-    //     type: 'bar',
-    //     orientation: 'h',
-    //     text: topLocationData.map(item => item.key),  // Text inside the bars
-    //     textposition: 'inside',
-    //     insidetextanchor: 'middle',  // Center text inside bars
-    //     hoverinfo: 'x+text'  // Show x, y, and text on hover
-    // }];
-
-    // var topLocationLayout = {
-    //     title: 'Top 30 Most Occurring Locations',
-    //     xaxis: {
-    //         title: 'Count of Incidents'
-    //     },
-    //     yaxis: {
-    //         title: 'Locations',
-    //         showticklabels: false,
-    //         autorange: 'reversed'  // Display bars in descending order
-    //     },
-    //     height: 1200,  // Increase the height of the plot
-    //     bargap: 0.1  // Adjust the gap between bars
-    // };
-    function getColors(count) {
-        const maxCount = Math.max(...locations.map(loc => loc.count));
-        const intensity = count / maxCount;
-        const hue = (1 - intensity) * 120; // Green to red gradient
-        const fillColor = `hsl(${hue}, 100%, 50%)`; // Full saturation, 50% lightness
-        const strokeColor = `hsl(${hue}, 100%, 30%)`; // Darker border, same hue and saturation, lower lightness
-        return { fillColor, strokeColor };
-    }
-
-
-
-
-
-    // Initialize the Leaflet Map
-    var map = L.map('map').setView([35.2226, -97.4395], 12);  // Centered on Norman, OK
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 16,
-        attribution: '© OpenStreetMap'
-    }).addTo(map);
-
-    // Assuming `locations` is passed as a JSON object array
-    var locationData = '{{ locations|tojson|safe }}';
-    var locations = JSON.parse(locationData);
-    locations.forEach(function(location) {
-        var lat = parseFloat(location.latitude);
-        var lng = parseFloat(location.longitude);
-        if (!isNaN(lat) && !isNaN(lng)) {
-            const colors = getColors(location.count); // Function to determine color based on count
-            var circleMarker = L.circleMarker([lat, lng], {
-                color: colors.strokeColor,
-                fillColor: colors.fillColor,
-                fillOpacity: 1,
-                radius: 5 + Math.sqrt(location.count)
-            }).addTo(map);
-            circleMarker.bindPopup("Location: " + location.name + "<br>Incidents: " + location.count);
-        }
-    });
-    // Adding legend to the map
-    var legend = L.control({ position: 'topright' });
-    legend.onAdd = function (map) {
-        var div = L.DomUtil.create('div', 'info legend'),
-            grades = [getMinCount(), getMidCount(), getMaxCount()],
-            labels = [],
-            from, to;
-
-        grades.forEach(function(count, index) {
-            labels.push(
-                '<i style="background:' + getColors(count).fillColor + '"></i> ' +
-                count + (grades[index + 1] ? '&ndash;' + grades[index + 1] : '+'));
-        });
-
-        div.innerHTML = '<div class="legend-gradient" style="background: linear-gradient(to right, ' + 
-                        getColors(grades[0]).fillColor + ', ' + 
-                        getColors(grades[1]).fillColor + ', ' + 
-                        getColors(grades[2]).fillColor + '); height: 20px; width: 200px;"></div>' + 
-                        '<div class="legend-labels">' + labels.join('<br>') + '</div>';
-        return div;
-    };
-    legend.addTo(map);
-
-
-    function getMinCount() { return Math.min(...locations.map(loc => loc.count)); }
-    function getMidCount() { 
-        let sorted = [...locations.map(loc => loc.count)].sort((a, b) => a - b);
-        return sorted[Math.floor(sorted.length / 2)];
-    }
-    function getMaxCount() { return Math.max(...locations.map(loc => loc.count)); }
-
-
-
-    // Aggregate data based on EMSSTAT
-    function aggregateEMSSTAT(data) {
-        const counts = { true: 0, false: 0 };
-        data.forEach(item => {
-            if (item['EMSSTAT'].toUpperCase() === 'TRUE') {
-                counts.true += 1;
-            } else {
-                counts.false += 1;
-            }
-        });
-        return counts;
-    }
-
-    // Visualization for EMSSTAT
-    var emsstatData = aggregateEMSSTAT(data);
-    var emsstatPlotData = [{
-        values: [emsstatData.true, emsstatData.false],
-        labels: ['True', 'False'],
-        type: 'pie'
-    }];
-
-    var emsstatLayout = {
-        title: 'Distribution of EMSSTAT'
-    };
-
-    Plotly.newPlot('emsstat-plot', emsstatPlotData, emsstatLayout, {responsive: true});
-
-    // Visualization for Side of Town (Pie Chart)
-    var sideOfTownData = aggregateData(data, 'Side of Town');
-
-    // Order for Side of Town
-    var sideOfTownOrder = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-    sideOfTownData.sort((a, b) => sideOfTownOrder.indexOf(a.key) - sideOfTownOrder.indexOf(b.key));
-
-    var highestFrequencyIndex = sideOfTownData.map(item => item.count).indexOf(Math.max(...sideOfTownData.map(item => item.count)));
-
-    var sideOfTownPlotData = [{
-        values: sideOfTownData.map(item => item.count),
-        labels: sideOfTownData.map(item => item.key),
-        type: 'pie',
-        textinfo: 'label+percent',
-        insidetextorientation: 'radial',
-        pull: sideOfTownData.map((_, i) => i === highestFrequencyIndex ? 0.1 : 0)
-    }];
-
-    var sideOfTownLayout = {
-        title: 'Incidents by Side of Town'
-    };
-
-    Plotly.newPlot('side-of-town-plot', sideOfTownPlotData, sideOfTownLayout, {responsive: true});
-</script>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" crossorigin=""></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/leaflet-heat.js" crossorigin=""></script>
+<script src="{{ url_for('static', filename='js/results_dashboard.js') }}"></script>
 {% endblock %}

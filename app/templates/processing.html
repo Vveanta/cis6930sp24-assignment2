@@ -8,14 +8,24 @@
 
 {% block content %}
 <section class="processing-section">
-    <div class="processing-card">
+    <div class="processing-card card">
         <div class="spinner" aria-hidden="true"></div>
-        <h1>Processing your incident data</h1>
+        <h1>Enriching your incident data</h1>
         <p class="processing-text">
-            Geocoding, weather lookup, and ranking can take several minutes. This page will redirect when results are ready.
-            <strong>Do not close this tab.</strong>
+            Geocoding is the slow step; weather runs in parallel afterward. This page polls the server every second for live progress.
+            <strong>Keep this tab open.</strong>
         </p>
-        <p id="processing-status" class="processing-status">Starting…</p>
+        <div class="processing-progress-wrap">
+            <div class="processing-meta">
+                <span class="processing-stage" id="processing-stage">Connecting…</span>
+                <span class="processing-pct" id="processing-pct">—</span>
+            </div>
+            <div class="processing-progress-bar" id="processing-bar-wrap">
+                <div class="processing-progress-fill" id="processing-bar"></div>
+                <div class="processing-progress-indeterminate" id="processing-indeterminate" hidden></div>
+            </div>
+            <p class="processing-detail" id="processing-detail"></p>
+        </div>
         <p id="processing-error" class="processing-error" hidden></p>
     </div>
 </section>
@@ -23,24 +33,60 @@
 <script>
 (function () {
     const jobId = {{ job_id | tojson }};
-    const statusEl = document.getElementById('processing-status');
+    const stageEl = document.getElementById('processing-stage');
+    const pctLabel = document.getElementById('processing-pct');
+    const barEl = document.getElementById('processing-bar');
+    const indEl = document.getElementById('processing-indeterminate');
+    const wrapEl = document.getElementById('processing-bar-wrap');
+    const detailEl = document.getElementById('processing-detail');
     const errEl = document.getElementById('processing-error');
 
-    function setStatus(msg) {
-        statusEl.textContent = msg;
+    let lastPct = 0;
+    let pollMs = 900;
+    const t0 = Date.now();
+
+    function parsePct(v) {
+        const n = Number(v);
+        return Number.isFinite(n) ? Math.max(0, Math.min(100, Math.round(n))) : null;
+    }
+
+    function applyProg(data) {
+        const raw = parsePct(data.percent);
+        if (raw !== null) {
+            lastPct = Math.max(lastPct, raw);
+        }
+        const pct = raw !== null ? lastPct : lastPct;
+        const stage = (data.stage && String(data.stage)) || 'Working…';
+        const detail = (data.detail && String(data.detail)) || '';
+
+        stageEl.textContent = stage;
+        pctLabel.textContent = pct + '%';
+        barEl.style.width = pct + '%';
+
+        const state = data.state || '';
+        const showPulse = (state === 'PENDING' || state === 'STARTED' || state === 'RECEIVED') && pct < 3 && (Date.now() - t0 > 2000);
+        indEl.hidden = !showPulse;
+        wrapEl.classList.toggle('processing-progress-bar--busy', showPulse);
+
+        detailEl.textContent = detail;
     }
 
     async function poll() {
         try {
             const res = await fetch('/api/job-status/' + encodeURIComponent(jobId));
             if (!res.ok) {
-                setStatus('Could not read job status (' + res.status + '). Retrying…');
-                setTimeout(poll, 3000);
+                applyProg({ stage: 'Waiting for status', percent: lastPct, detail: 'HTTP ' + res.status, state: 'RECEIVED' });
+                setTimeout(poll, 2000);
                 return;
             }
             const data = await res.json();
+            applyProg(data);
+
             if (data.state === 'SUCCESS') {
-                setStatus('Finishing up…');
+                stageEl.textContent = 'Saving results…';
+                pctLabel.textContent = '100%';
+                barEl.style.width = '100%';
+                indEl.hidden = true;
                 const fin = await fetch('/api/job-finalize/' + encodeURIComponent(jobId), { method: 'POST' });
                 const out = await fin.json();
                 if (!fin.ok) {
@@ -52,15 +98,19 @@
                 return;
             }
             if (data.state === 'FAILURE') {
+                indEl.hidden = true;
+                if (data.error_code === 'geocoding_quota' || (data.error && String(data.error).indexOf('GeocodingQuota') !== -1)) {
+                    window.location.href = '/errors/geocoding-quota';
+                    return;
+                }
                 errEl.hidden = false;
                 errEl.textContent = data.error || 'Processing failed.';
                 return;
             }
-            setStatus('Working… (' + data.state + ')');
-            setTimeout(poll, 2500);
+            setTimeout(poll, pollMs);
         } catch (e) {
-            setStatus('Network error. Retrying…');
-            setTimeout(poll, 4000);
+            applyProg({ stage: 'Network', percent: lastPct, detail: 'Retrying…', state: 'STARTED' });
+            setTimeout(poll, 2500);
         }
     }
     poll();

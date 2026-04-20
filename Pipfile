@@ -27,6 +27,8 @@ exceptiongroup = "*"
 gunicorn = "*"
 celery = "*"
 redis = "*"
+matplotlib = "*"
+reportlab = "*"
 
 [dev-packages]
 

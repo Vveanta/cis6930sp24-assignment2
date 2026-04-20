@@ -1,0 +1,547 @@
+/* ==========================================================
+   Results Dashboard — layout, components, and cascade fixes
+   ==========================================================
+   Load order: after theme.css, styles.css, results.css.
+   We use .results-dashboard prefix for scoped overrides.
+   ========================================================== */
+
+/* ── 1. Reset conflicting globals ─────────────────────────
+   styles.css sets   * { color: #203129 }          → breaks tokens
+   results.css sets  .btn { margin:20px; }          → breaks export row
+   ────────────────────────────────────────────────────────── */
+.results-dashboard,
+.results-dashboard * {
+  color: inherit;
+  box-sizing: border-box;
+}
+
+.results-dashboard {
+  max-width: 1600px;
+  margin: 0 auto;
+  color: var(--text);
+  font-family: var(--font);
+}
+
+.results-dashboard .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: var(--font);
+  border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+  margin: 0;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.results-dashboard .btn-primary {
+  background: var(--accent);
+  color: #fff !important;
+  border-color: var(--accent);
+}
+
+.results-dashboard .btn-primary:hover {
+  background: var(--accent-2);
+  border-color: var(--accent-2);
+}
+
+.results-dashboard .btn-ghost {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text) !important;
+}
+
+.results-dashboard .btn-ghost:hover {
+  border-color: var(--accent);
+  color: var(--accent) !important;
+}
+
+/* ── 2. Alert strips ──────────────────────────────────────── */
+.results-dashboard .alert-strip {
+  padding: 1rem 1.25rem !important;
+  margin-bottom: 1rem;
+}
+
+.results-dashboard .alert-strip .h-small {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 0.35rem;
+}
+
+.results-dashboard .alert-strip .muted-list {
+  font-size: 0.83rem;
+  color: var(--muted);
+  margin-left: 1rem;
+  line-height: 1.7;
+}
+
+.results-dashboard .alert-strip .lead.small {
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin: 0.35rem 0 0;
+}
+
+/* ── 3. Anomaly banner ────────────────────────────────────── */
+.results-dashboard .anomaly-banner {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+  padding: 0.7rem 1rem;
+  border-radius: 8px;
+  margin-bottom: 0.85rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.results-dashboard .anomaly-banner strong {
+  color: #78350f;
+}
+
+/* ── 4. Dashboard top bar (title + KPIs) ──────────────────── */
+.dashboard-top {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 1.25rem 2.5rem;
+  align-items: center;
+  padding: 1.5rem 1.75rem;
+  margin-bottom: 1.25rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  border-top: 3px solid var(--accent);
+}
+
+@media (max-width: 960px) {
+  .dashboard-top {
+    grid-template-columns: 1fr;
+  }
+
+  .kpi-row {
+    justify-content: flex-start !important;
+  }
+}
+
+.dashboard-title-block h1 {
+  font-size: 1.45rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  margin: 0 0 0.25rem;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.dashboard-title-block .lead {
+  font-size: 0.875rem;
+  color: var(--muted);
+  margin: 0 0 0.3rem;
+  max-width: 44rem;
+  line-height: 1.55;
+}
+
+.doc-link {
+  margin: 0;
+}
+
+.doc-link a {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.doc-link a:hover {
+  color: var(--accent-2);
+  text-decoration: underline;
+}
+
+/* ── 5. KPI cards ─────────────────────────────────────────── */
+.kpi-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: stretch;
+  justify-content: flex-end;
+}
+
+.kpi-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.85rem 1.1rem;
+  min-width: 8rem;
+  text-align: left;
+  position: relative;
+  transition: box-shadow 0.15s, border-color 0.15s;
+  overflow: hidden;
+}
+
+.kpi-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent), #2dd4bf);
+  border-radius: 10px 10px 0 0;
+}
+
+.kpi-card:hover {
+  box-shadow: 0 4px 16px rgba(13, 110, 124, 0.1);
+  border-color: var(--accent);
+}
+
+.kpi-card .kpi-label {
+  display: block;
+  font-size: 0.67rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: 0.35rem;
+}
+
+.kpi-card .kpi-value {
+  display: block;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1.1;
+  word-break: break-word;
+}
+
+/* KPI value size variants */
+.kpi-card .kpi-value--date {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.kpi-card .kpi-value--nature {
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+/* ── 6. Dashboard body: sidebar + main ───────────────────── */
+.dashboard-body {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .dashboard-body {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── 7. Filter sidebar ────────────────────────────────────── */
+.sidebar-panel {
+  position: sticky;
+  top: 1rem;
+  padding: 1.25rem !important;
+}
+
+.sidebar-panel > h2 {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  font-weight: 700;
+  margin: 0 0 1rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.sidebar-panel .results-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: stretch;
+  margin-bottom: 0;
+}
+
+.sidebar-panel .results-toolbar > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.sidebar-panel .results-toolbar label {
+  font-size: 0.73rem;
+  font-weight: 600;
+  color: var(--muted);
+  display: block;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.sidebar-panel .results-toolbar input[type="date"],
+.compare-grid input[type="date"] {
+  width: 100%;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  transition: border-color 0.15s, box-shadow 0.15s;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.sidebar-panel .results-toolbar input[type="date"]:focus,
+.compare-grid input[type="date"]:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(13, 110, 124, 0.1);
+}
+
+.sidebar-panel .btn {
+  width: 100%;
+  justify-content: center;
+  margin-top: 0.35rem;
+}
+
+/* Compare period block */
+.compare-block {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.compare-block .chk {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--text);
+  user-select: none;
+}
+
+.compare-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.compare-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.compare-grid .lbl {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.15rem;
+}
+
+.compare-grid input[type="date"] {
+  margin-bottom: 0.2rem;
+}
+
+/* ── 8. Main panels column ────────────────────────────────── */
+.main-panels {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0; /* prevent grid blowout */
+}
+
+/* ── 9. Shared panel styles ───────────────────────────────── */
+.chart-panel,
+.chart-panel-wide,
+.map-panel,
+.weather-panel {
+  padding: 1.25rem 1.5rem !important;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.panel-heading {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  font-weight: 700;
+  margin: 0 0 0.85rem;
+}
+
+/* ── 10. Two-column chart row ─────────────────────────────── */
+.chart-row-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+
+@media (max-width: 900px) {
+  .chart-row-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── 11. Plot containers ──────────────────────────────────── */
+.plot-box {
+  min-height: 260px;
+  width: 100%;
+}
+
+.plot-box-wide {
+  min-height: 380px;
+  width: 100%;
+}
+
+/* ── 12. Weather panel ────────────────────────────────────── */
+.weather-panel .viz-desc {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: 0 0 0.5rem;
+  line-height: 1.5;
+}
+
+.weather-panel .weather-icons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+/* ── 13. Map panel ────────────────────────────────────────── */
+.map-panel .map-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  margin: 0 0 0.75rem;
+  padding: 0.6rem 0.85rem;
+  background: var(--bg);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font-size: 0.83rem;
+}
+
+.map-panel .map-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.map-panel .map-controls input[type="range"] {
+  accent-color: var(--accent);
+  width: 80px;
+  vertical-align: middle;
+}
+
+.map-panel .map-box {
+  height: 440px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+/* ── 14. Incident types panel ─────────────────────────────── */
+.chart-panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.chart-panel-head .panel-heading {
+  margin: 0;
+}
+
+.chart-panel-head .input-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 0.83rem;
+  color: var(--muted);
+}
+
+.chart-panel-head .input-row label {
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.chart-panel-head .input-row input[type="number"] {
+  width: 4.5rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  font-size: 0.85rem;
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  transition: border-color 0.15s;
+}
+
+.chart-panel-head .input-row input[type="number"]:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(13, 110, 124, 0.1);
+}
+
+/* ── 15. Exports bar ──────────────────────────────────────── */
+.exports-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem !important;
+}
+
+.exports-bar > h2 {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  font-weight: 700;
+  margin: 0;
+}
+
+.exports-bar .export-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+/* ── 16. Inline panel-heading styles (override inline style) ─ */
+.results-dashboard .panel-heading,
+.results-dashboard h3.panel-heading {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  font-weight: 700;
+  margin: 0 0 0.85rem;
+}

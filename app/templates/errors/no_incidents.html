@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}No incidents found{% endblock %}
+{% block content %}
+<section class="page-hero error-page">
+  <div class="card card-narrow">
+    <span class="badge badge-warn">Nothing to visualize</span>
+    <h1>No incidents were parsed</h1>
+    <p class="lead">
+      The PDF loaded, but we could not find any incident rows that match the Norman PD daily summary layout
+      (date/time, incident number, location, nature, ORI).
+    </p>
+    <ul class="action-list">
+      <li>Confirm the file is a <strong>Norman Police Department daily incident summary</strong> (not a press release or other PDF).</li>
+      <li>Check that text is selectable (not a scanned image without OCR).</li>
+      <li>Review the official format on the city site:</li>
+    </ul>
+    <p>
+      <a class="btn btn-primary" href="https://www.normanok.gov/public-safety/police-department/crime-prevention-data/department-activity-reports" target="_blank" rel="noopener">Department activity reports &amp; format</a>
+      <a class="btn btn-ghost" href="{{ url_for('main.upload') }}">Try another file</a>
+    </p>
+  </div>
+</section>
+{% endblock %}

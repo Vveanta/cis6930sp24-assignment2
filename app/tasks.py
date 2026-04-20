@@ -9,7 +9,15 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from app.celery_app import celery_app
-from app.job_store import get_redis, store_job_results, _key
+from app.job_store import (
+    _key,
+    get_redis,
+    set_job_error_code,
+    set_job_progress,
+    store_job_results,
+)
+
+from app.utils.geocoding import GeocodingQuotaError
 
 
 @celery_app.task(bind=True, name="augment.run_job")
@@ -25,6 +33,9 @@ def run_augment_job(self, job_id: str) -> dict:
     if not db_bytes:
         raise ValueError(f"No SQLite payload in Redis for job {job_id}")
 
+    def _progress(stage: str, percent: int, detail: str | None) -> None:
+        set_job_progress(job_id, stage, percent, detail)
+
     tmp_path = None
     try:
         fd, tmp_path = tempfile.mkstemp(suffix=".db", prefix=f"normanpd_{job_id}_")
@@ -32,7 +43,13 @@ def run_augment_job(self, job_id: str) -> dict:
         with open(tmp_path, "wb") as f:
             f.write(db_bytes)
 
-        csv_path = augment_data(tmp_path)
+        _progress("Starting", 2, None)
+        try:
+            csv_path = augment_data(tmp_path, progress_cb=_progress)
+        except GeocodingQuotaError as e:
+            set_job_error_code(job_id, "geocoding_quota", str(e))
+            raise
+
         with open(csv_path, "rb") as f:
             csv_bytes = f.read()
         with open(tmp_path, "rb") as f:
